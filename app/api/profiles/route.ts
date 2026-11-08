@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { addProfile } from "@/lib/sync";
 
 export const runtime = "nodejs";
@@ -10,5 +9,5 @@ export async function POST(request: Request) {
   } catch (error) {
     return new Response(String(error), { status: 400 });
   }
-  return NextResponse.redirect(new URL("/", request.url), 303);
+  return new Response(null, { status: 303, headers: { Location: "/" } });
 }
