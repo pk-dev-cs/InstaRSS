@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
   const password = process.env.ADMIN_PASSWORD;
+  if (!password && process.env.NODE_ENV === "production") {
+    return new NextResponse("Set ADMIN_PASSWORD to enable the management interface", { status: 503 });
+  }
   if (!password) return NextResponse.next();
   const authorization = request.headers.get("authorization") || "";
   if (authorization.startsWith("Basic ")) {
