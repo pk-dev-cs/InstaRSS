@@ -64,7 +64,7 @@ Use `.env.local` for local development and service environment variables in prod
 | --- | --- | --- |
 | `DATA_DIR` | `./data` | Directory containing the SQLite database and downloaded images. Use a persistent local volume in production. |
 | `APP_BASE_URL` | Local example: `http://localhost:3000` | Public application URL used for image links in RSS and copied feed URLs. Set this to your deployed URL. |
-| `ADMIN_PASSWORD` | Empty | Enables HTTP Basic authentication for the management interface and profile actions. The username is `admin`. |
+| `ADMIN_PASSWORD` | Empty | Enables HTTP Basic authentication for the management interface and profile actions. The username is `admin`. Required in production; without it, management routes return HTTP 503. |
 | `SYNC_TOKEN` | Empty | Separate Bearer token for `POST /api/sync`. The endpoint is disabled when this is empty. |
 | `META_ACCESS_TOKEN` | Empty | Optional access token for the official API. |
 | `META_IG_USER_ID` | Empty | Professional account identifier used by Business Discovery. Required alongside the API token. |
@@ -124,10 +124,12 @@ For a successfully running hourly schedule, physical deletion normally occurs wi
 Run the web application as a persistent service:
 
 1. Install dependencies and build with `npm ci && npm run build`.
-2. Install Chromium and its Linux dependencies in the deployment image so the browser fallback can run. There is currently no bundled Dockerfile; configure this as part of your image or build setup.
-3. Start the application with `npm run start`.
+2. Use the bundled `Dockerfile`. It builds the application on Node.js 22 and installs Chromium with its Linux dependencies. `.dockerignore` excludes local secrets, runtime data, and generated files from the image.
+3. Use the image's default start command, which listens on Railway's `PORT` on all interfaces.
 4. Attach a persistent volume, for example at `/data`, and set `DATA_DIR=/data`.
 5. Set `APP_BASE_URL` to the service's HTTPS URL and configure `ADMIN_PASSWORD` and `SYNC_TOKEN`.
+
+Set the service healthcheck path to `/api/health`. This public endpoint checks database access independently of administrator authentication. The application starts with an empty production database; local profiles and image files are not bundled in the image.
 
 Keep the web application and its SQLite database on a single service instance. SQLite WAL access requires the processes using the database to share the same host; a separate cron service does not share the application's local files.
 
