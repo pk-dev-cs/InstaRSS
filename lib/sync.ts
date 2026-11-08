@@ -67,16 +67,16 @@ export async function syncProfile(profile: typeof profiles.$inferSelect) {
   let incoming: IncomingPost[];
   try {
     incoming = await fromApi(profile.username);
-  } catch (apiError) {
+  } catch {
     source = "public-page";
     try {
       incoming = await fromPublicPage(profile.username);
-    } catch (scrapeError) {
+    } catch {
       source = "browser";
       try {
         incoming = await fromBrowser(profile.username);
       } catch (browserError) {
-        const error = `API: ${String(apiError)}; HTML: ${String(scrapeError)}; browser: ${String(browserError)}`;
+        const error = browserError instanceof Error ? browserError.message.split("\n")[0] : "Public fetching failed. Try again later.";
         db.update(profiles).set({ lastCheckedAt: Date.now(), lastError: error.slice(0, 1000) }).where(eq(profiles.id, profile.id)).run();
         throw new Error(error);
       }
