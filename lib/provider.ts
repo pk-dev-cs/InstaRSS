@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { postLinkSelector, waitForPostLinks } from "./provider-page";
 
 export type IncomingPost = {
   id: string;
@@ -125,8 +126,8 @@ export async function fromBrowser(username: string): Promise<IncomingPost[]> {
     const page = await browser.newPage({ locale: "en-US" });
     const response = await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: "domcontentloaded", timeout: 20000 });
     if (!response?.ok()) throw new Error(`Photo provider: HTTP ${response?.status() || "no response"}`);
-    await page.locator('a[href*="/p/"], a[href*="/reel/"]').first().waitFor({ timeout: 10000 });
-    const links = await page.locator('a[href*="/p/"], a[href*="/reel/"]').evaluateAll((anchors) => anchors.map((anchor) => (anchor as HTMLAnchorElement).href));
+    await waitForPostLinks(page);
+    const links = await page.locator(postLinkSelector).evaluateAll((anchors) => anchors.map((anchor) => (anchor as HTMLAnchorElement).href));
     const paths = [...new Set(links)].filter((value) => {
       try {
         const parsed = new URL(value);
