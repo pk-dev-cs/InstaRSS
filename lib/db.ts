@@ -38,9 +38,18 @@ export const mediaDir = path.join(dataDir, "media");
 fs.mkdirSync(mediaDir, { recursive: true });
 
 const sqlite = new Database(path.join(dataDir, "feed.sqlite"));
-sqlite.pragma("journal_mode = WAL");
+sqlite.pragma("busy_timeout = 10000");
+for (let attempt = 0; ; attempt++) {
+  try {
+    sqlite.pragma("journal_mode = WAL");
+    break;
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "SQLITE_BUSY") || attempt >= 4) throw error;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+  }
+}
 sqlite.pragma("foreign_keys = ON");
-sqlite.pragma("busy_timeout = 5000");
+sqlite.transaction(() => {
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS profiles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,6 +86,7 @@ const postColumns = sqlite.pragma("table_info(posts)") as { name: string }[];
 if (postColumns.some((column) => column.name === "instagram_id")) {
   sqlite.exec("ALTER TABLE posts RENAME COLUMN instagram_id TO source_post_id");
 }
+}).immediate();
 
 export const db = drizzle(sqlite, { schema: { profiles, posts, images } });
 export { sqlite };
