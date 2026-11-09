@@ -24,7 +24,7 @@ Electron desktop → HTTPS Rust API → SQLite + image files
 
 ## Windows application
 
-Download the installer from [GitHub Releases](https://github.com/pk-dev-cs/InstaRSS/releases). Install it, open the **Settings** tab, and enter:
+Once a version has been published, download `InstaRSS-win-Setup.exe` from [GitHub Releases](https://github.com/pk-dev-cs/InstaRSS/releases). Install it, open the **Settings** tab, and enter:
 
 1. The Rust API's HTTPS URL.
 2. The administrator password configured on that server.
@@ -53,6 +53,12 @@ Start the local Rust API in one PowerShell terminal:
 
 ```powershell
 pwsh -File scripts/run-local-api.ps1
+```
+
+If Windows blocks PowerShell scripts, launch the helper with a policy override limited to that process:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-local-api.ps1
 ```
 
 The script asks for a local API administrator password, binds only to `127.0.0.1:3102`, and stores test profiles and images in `data/local-api/`. In a second terminal, run the desktop with `npm --prefix desktop run dev`, or use the local installer. Connect it to `http://127.0.0.1:3102` with that API password. This is separate from source account authentication; fetching remains public-only.
@@ -131,16 +137,40 @@ The new API reads the existing `feed.sqlite` and `media/` layout. Its migration 
 
 ## Versioned installers and automatic updates
 
-The [desktop release workflow](.github/workflows/desktop-release.yml) runs when a stable version tag is pushed, for example:
+API deployment and desktop releases use separate triggers:
+
+| Git action | Result |
+| --- | --- |
+| Push to `main` changing `api/**` or `.dockerignore` | Railway rebuilds and deploys the API. |
+| Push to `main` changing only desktop code or documentation | Runs repository checks; does not publish a desktop release or redeploy the API. |
+| Push a stable `vX.Y.Z` tag | GitHub Actions builds and publishes a Windows desktop release. |
+
+### Publish a desktop version
+
+Merge the changes into `main`, push them, and wait for the [desktop and API checks](https://github.com/pk-dev-cs/InstaRSS/actions/workflows/desktop-api-checks.yml) to pass. Then tag that commit with a new stable version:
 
 ```bash
+git switch main
+git pull --ff-only origin main
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The workflow validates the tag, sets the desktop package version, runs checks, packages Windows x64 with Electron, and uses **Velopack 1.2.161** to publish the installer and update feed to a GitHub Release. It uses the repository's built-in Actions token with `contents: write`; no GitHub token is embedded in the desktop application.
+Use a new, increasing version for each release, such as `v0.1.1` for the next patch. Stable `vX.Y.Z` tags are supported; prerelease suffixes are rejected. Do not move an already published version tag.
 
-Installed applications check the public release feed at startup and every six hours. Updates download in the background; **Restart & update** installs the downloaded version. Application settings live outside the installation directory and survive updates.
+The [Desktop release workflow](.github/workflows/desktop-release.yml) validates the tag, sets the package version from it, runs TypeScript checks and unit tests, builds the Electron application, and packages Windows x64 using **Velopack 1.2.161**. The version change happens only in the build workspace; no manual edit to `desktop/package.json` is needed. The workflow then publishes a GitHub Release using the repository's built-in Actions token with `contents: write`; no GitHub token is embedded in the application.
+
+Follow the run in [GitHub Actions](https://github.com/pk-dev-cs/InstaRSS/actions/workflows/desktop-release.yml). After it succeeds, the release assets include:
+
+- `InstaRSS-win-Setup.exe` — the Windows installer.
+- A portable ZIP build.
+- Velopack packages and release metadata used by automatic updates. Keep these assets attached to the release.
+
+The first release enables installer downloads. A later release with a higher version is needed to test an installed application's update path.
+
+### Install updates
+
+Installed applications check the public release feed at startup and every six hours. Open **Settings → Check for updates** to check manually. Updates download in the background; **Restart & update** installs the downloaded version. Application settings live outside the installation directory and survive updates. Updates are disabled when running from source with `npm --prefix desktop run dev`.
 
 Installers are currently unsigned because no code-signing certificate has been configured. Windows may display an unknown-publisher warning. End-to-end installation of a future version through a published release requires at least two released versions; local builds do not prove that production update path.
 
