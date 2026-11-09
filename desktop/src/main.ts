@@ -69,7 +69,7 @@ async function checkUpdate():Promise<AppStatus>{
 }
 function createWindow(){
   if(window&&!window.isDestroyed()){window.show();window.focus();return;}
-  window=new BrowserWindow({width:1280,height:960,minWidth:620,minHeight:600,backgroundColor:"#0c1012",title:"InstaRSS",icon:path.join(app.getAppPath(),"assets/icon.png"),webPreferences:{preload:path.join(__dirname,"preload.cjs"),nodeIntegration:false,contextIsolation:true,sandbox:true}});
+  window=new BrowserWindow({width:1280,height:960,minWidth:620,minHeight:600,titleBarStyle:"hidden",titleBarOverlay:{color:"#1d2528",symbolColor:"#e6ebe7",height:44},backgroundColor:"#0c1012",title:"InstaRSS",icon:path.join(app.getAppPath(),"assets/icon.png"),webPreferences:{preload:path.join(__dirname,"preload.cjs"),nodeIntegration:false,contextIsolation:true,sandbox:true}});
   window.removeMenu();window.webContents.setWindowOpenHandler(()=>({action:"deny"}));
   window.webContents.on("will-navigate",event=>event.preventDefault());
   window.on("close",event=>{if(!quitting){event.preventDefault();window?.hide();}});
