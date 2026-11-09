@@ -1,8 +1,14 @@
 node_modules/
-.next/
 .env
 .env.local
 .env.*
 !.env.example
 data/
 *.tsbuildinfo
+api/target/
+desktop/node_modules/
+desktop/dist/
+desktop/out/
+desktop/Releases/
+desktop/.tools/
+.tools/

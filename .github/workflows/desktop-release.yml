@@ -1,0 +1,52 @@
+name: Desktop release
+on:
+  push:
+    tags: ['v[0-9]*']
+permissions:
+  contents: write
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+      RELEASE_REPOSITORY: ${{ github.repository }}
+      RELEASE_COMMIT: ${{ github.sha }}
+    defaults:
+      run:
+        working-directory: desktop
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Validate version tag
+        run: |
+          $version = $env:RELEASE_TAG -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Use a stable version tag such as v1.0.0' }
+          "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
+      - run: npm ci
+      - run: npm version $env:RELEASE_VERSION --no-git-tag-version --allow-same-version
+      - run: npm run check
+      - run: npm test
+      - run: npm run package
+      - name: Prepare installer and update feed
+        run: |
+          dotnet tool install --tool-path .tools vpk --version 1.2.161
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./.tools/vpk.exe pack -u InstaRSS -v $env:RELEASE_VERSION -p out/InstaRSS-win32-x64 -e InstaRSS.exe --runtime win-x64 --icon assets/icon.ico -o Releases
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Publish GitHub Release
+        env:
+          VPK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./.tools/vpk.exe upload github --repoUrl "https://github.com/$env:RELEASE_REPOSITORY" --token $env:VPK_TOKEN --publish --releaseName "InstaRSS $env:RELEASE_VERSION" --tag $env:RELEASE_TAG --targetCommitish $env:RELEASE_COMMIT -o Releases
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

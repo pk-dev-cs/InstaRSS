@@ -1,8 +1,13 @@
 .git
-.next
 node_modules
 data
 .env
 .env.*
 *.tsbuildinfo
 docs
+api/target
+desktop/node_modules
+desktop/dist
+desktop/out
+desktop/Releases
+desktop/.tools
