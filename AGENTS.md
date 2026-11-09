@@ -3,13 +3,22 @@
 ## Project context
 
 - The official project name is InstaRSS (npm package: `instarss`). This application turns public photo-sharing profiles into RSS feeds with locally stored images.
-- Stack: Next.js App Router, React, TypeScript, SQLite (`better-sqlite3`), and Drizzle ORM.
-- Fetching order: official API, public HTML through Cheerio, then Playwright when browser rendering is required.
+- New architecture: Electron + React/TypeScript in `desktop/`, Rust + Axum/SQLx in `api/`, and SQLite with image files on the API's persistent volume.
+- Electron fetches public pages locally and uploads posts and images to the Rust API. The API serves RSS and images and handles retention; it must not scrape from the hosting server.
+- The original Next.js/Drizzle/Playwright implementation remains available during migration. Do not remove it or switch the live Railway service until the replacement has been tested against compatible data.
 - Keep the user interface, accessibility labels, metadata, and application-generated messages in English. Preserve the original language of fetched posts.
 - Use InstaRSS for project branding and neutral photo-sharing terminology for descriptions. Do not use the provider's full name in UI text or documentation; retain it only where technically required, such as domain names and compatibility migrations.
 
 ## Repository structure
 
+- `desktop/src/`: Electron main process, isolated preload bridge, local fetching, preferences, updates, and React renderer.
+- `desktop/tests/`: unit tests and the actual Electron-to-Rust integration test.
+- `desktop/package.json`: independent desktop dependencies and build commands.
+- `api/src/`: Rust HTTP API, authentication, SQLite persistence, RSS, media, and cleanup.
+- `api/tests/`: API and legacy database compatibility checks.
+- `api/Dockerfile`: Rust deployment image, built with the repository root as context.
+- `.github/workflows/`: checks and version-tag-driven Windows installer releases.
+- The following paths belong to the legacy web implementation:
 - `app/`: pages, client components, styles, and Route Handlers.
 - `lib/db.ts`: database connection, Drizzle schema, and SQLite initialization.
 - `lib/provider.ts`: provider adapters and public-page parsing.
@@ -35,16 +44,19 @@
 - Do not mix unrelated formatting or cleanup with a functional change.
 - Commit or merge only when requested by the user. Before publishing, run the checks appropriate to the change and review the diff.
 - When asked to publish locally, commit on the session branch and merge into local `main` with `--no-ff`. Do not squash or fast-forward session branches.
-- Follow an established merge-title convention if the repository has one. Use `MERGE N: Description` only if numbered merge commits already exist; determine the next number from history.
+- Always title merge commits `MERGE N: Description`, with a short English description (for example, `MERGE 1: Add desktop synchronization`).
+- Determine `N` from the highest existing `MERGE N:` number in the repository's merge history and increment it by one. If no numbered merge exists, start at `MERGE 1:`. Older unnumbered merges do not count toward this sequence.
 - After merging, verify the branch and merge commit, and report any remaining working-tree changes.
 - Do not push to a remote or deploy to Railway unless explicitly requested. Publishing locally does not authorize either action.
 
 ## Verification
 
 - Install dependencies with `npm ci` when setting up from the committed lockfile. Use `npm install` when intentionally changing dependencies and include the updated `package-lock.json`.
-- Run `npm run check` and `npm run build` for application code, dependency, or configuration changes.
-- Run `npm run test:smoke` when changing RSS generation, database persistence, image storage, or retention.
-- Run `npx tsx scripts/sync-endpoint-smoke.ts` when changing synchronization orchestration, its lock, or endpoint authentication and responses.
+- For desktop changes, run `npm --prefix desktop run check`, `npm --prefix desktop test`, and `npm --prefix desktop run build`.
+- For API changes, run `cargo fmt --manifest-path api/Cargo.toml -- --check` and `cargo test --manifest-path api/Cargo.toml --locked`.
+- For changes across the desktop/API boundary, build the API with `cargo build --manifest-path api/Cargo.toml --locked`, then run `npm --prefix desktop run test:e2e`.
+- For packaging or updates, produce a Windows x64 package and Velopack installer. Keep the npm Velopack and CLI versions aligned. Do not claim end-to-end auto-updates work until an installed application has updated between released versions.
+- For legacy web changes, retain the root `npm run check`, `npm run build`, and relevant smoke scripts.
 - For layout or interaction changes, inspect desktop and mobile views, including long usernames and copy-URL feedback when relevant.
 - For documentation-only changes, verify paths, commands, and the diff; an application build is not required.
 - Run `git diff --check` before committing or merging when Git is available. Fix errors and warnings introduced by the change.
@@ -59,22 +71,26 @@
 - Keep image URLs stable for the retained lifetime and include image data in RSS, with valid XML escaping and MIME types.
 - Deduplicate posts across API and scraping sources. Preserve existing successful imports when a later fetch fails.
 - Keep adapter output consistent so storage and RSS generation do not depend on the fetching source.
-- Protect `POST /api/sync` with the separate `SYNC_TOKEN` Bearer token. Leave the endpoint disabled when the token is unset.
-- Preserve protection against overlapping full synchronizations and recovery after an interrupted job.
-- Keep RSS and retained-image endpoints public when `ADMIN_PASSWORD` protects the management interface.
-- Railway cron should call the application's synchronization endpoint. SQLite and images stay on the application service's persistent volume; a separate cron service must not assume access to that volume.
+- Rust management and ingestion endpoints require a valid Bearer token. New desktop installations pair using administrator authentication; store only token hashes on the server and encrypted tokens on the desktop. Never store the administrator password in desktop preferences or embed credentials in an installer.
+- The Rust API's `POST /api/sync` is a cleanup-only compatibility alias for an existing maintenance cron; it does not fetch posts. It requires an installation token or configured API_TOKEN/SYNC_TOKEN.
+- Prevent overlapping syncs within a desktop instance; persist the interval and last attempt, and catch up after restart or resume. Fetching cannot run while the application or computer is off.
+- RSS and retained-image endpoints remain public and available while the desktop is closed.
+- Retention runs in the Rust API independently of connected desktops. SQLite and images stay on the same persistent volume; another Railway service must not assume access to it.
 - Report unavailable public data as a fetch failure. Do not claim that scraping works for every profile or add login credentials, user-session cookies, or block-evasion mechanisms without an explicit change in scope.
 
 ## Code style and configuration
 
-- Use TypeScript with clear names and narrow types. Keep database, filesystem, API credentials, and scraping code on the server.
-- Keep client components small and limited to interactions such as copying RSS URLs.
+- Use TypeScript with clear names and narrow types, and idiomatic formatted Rust.
+- Keep local fetching, filesystem access, OS encryption, scheduling, and Velopack in Electron's main process. Only expose narrow, validated IPC methods to the renderer, and check IPC senders.
+- Source pages must be sandboxed with Node integration disabled and isolated from management credentials. Keep Electron web security enabled.
+- Keep database access and persistent images in Rust. The desktop uploads image bytes, and the API validates metadata, image signatures, MIME types, and size limits.
 - Use the existing terminal-inspired design: dark surfaces, monospace typography, blue accents, and rectangular controls. Maintain keyboard focus visibility and responsive layouts.
 - Avoid unnecessary comments and commented-out code. Explain non-obvious decisions when a comment is useful.
 - Keep schema definitions and SQLite initialization consistent. Database changes must preserve existing data and account for existing installations.
 - Document new environment variables in `.env.example` using empty values or safe placeholders. Never commit or print `.env.local`, tokens, passwords, or runtime data.
-- When adding environment variables used by scripts, preserve loading through `@next/env`.
-- Keep Node.js runtime requirements for SQLite, filesystem access, and Playwright. Browser support requires installing Chromium with `npx playwright install chromium` (plus system dependencies on Linux when needed).
+- Rust reads process environment variables; document them in `api/.env.example`. The legacy Next.js scripts still load configuration through `@next/env`.
+- Electron uses its bundled Chromium, not a second Playwright browser. Playwright is only a desktop test driver in the new architecture.
+- Keep GitHub release publishing restricted to stable `vX.Y.Z` tags. Never embed the release workflow's GitHub token in the application, and treat tag names as untrusted script input.
 
 ## Git safety
 
