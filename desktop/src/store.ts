@@ -8,7 +8,7 @@ export class Store {
   private value:Stored;
   private filename=path.join(app.getPath("userData"),"settings.json");
   constructor(){
-    const defaults:Stored={apiUrl:"https://instarss-api-production.up.railway.app",intervalMinutes:1440,startAtLogin:false,lastAttempt:null,lastSuccess:null,lastError:null,deviceId:null,encryptedToken:null};
+    const defaults:Stored={apiUrl:"http://127.0.0.1:3102",intervalMinutes:1440,startAtLogin:false,lastAttempt:null,lastSuccess:null,lastError:null,deviceId:null,encryptedToken:null};
     let loaded:Partial<Stored>={};
     try{loaded=JSON.parse(fs.readFileSync(this.filename,"utf8"));}catch{}
     this.value={...defaults,...loaded};

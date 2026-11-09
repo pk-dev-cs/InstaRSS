@@ -28,7 +28,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
     let port: u16 = env::var("PORT").unwrap_or_else(|_| "3000".into()).parse()?;
-    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, port)).await?;
+    let host: std::net::IpAddr = env::var("BIND_ADDRESS")
+        .unwrap_or_else(|_| "0.0.0.0".into())
+        .parse()?;
+    let listener = tokio::net::TcpListener::bind((host, port)).await?;
     tracing::info!(port, "InstaRSS API listening");
     axum::serve(listener, router(state))
         .with_graceful_shutdown(async {
