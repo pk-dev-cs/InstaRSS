@@ -5,7 +5,6 @@
 - The official project name is InstaRSS (npm package: `instarss`). This application turns public photo-sharing profiles into RSS feeds with locally stored images.
 - New architecture: Electron + React/TypeScript in `desktop/`, Rust + Axum/SQLx in `api/`, and SQLite with image files on the API's persistent volume.
 - Electron fetches public pages locally and uploads posts and images to the Rust API. The API serves RSS and images and handles retention; it must not scrape from the hosting server.
-- The original Next.js/Drizzle/Playwright implementation remains available during migration. Do not remove it or switch the live Railway service until the replacement has been tested against compatible data.
 - Keep the user interface, accessibility labels, metadata, and application-generated messages in English. Preserve the original language of fetched posts.
 - Use InstaRSS for project branding and neutral photo-sharing terminology for descriptions. Do not use the provider's full name in UI text or documentation; retain it only where technically required, such as domain names and compatibility migrations.
 
@@ -18,15 +17,8 @@
 - `api/tests/`: API and legacy database compatibility checks.
 - `api/Dockerfile`: Rust deployment image, built with the repository root as context.
 - `.github/workflows/`: checks and version-tag-driven Windows installer releases.
-- The following paths belong to the legacy web implementation:
-- `app/`: pages, client components, styles, and Route Handlers.
-- `lib/db.ts`: database connection, Drizzle schema, and SQLite initialization.
-- `lib/provider.ts`: provider adapters and public-page parsing.
-- `lib/sync.ts`: profile synchronization, image downloads, and retention cleanup.
-- `lib/sync-all.ts`: synchronization across profiles and the shared database lock.
-- `lib/rss.ts`: RSS XML generation.
-- `scripts/`: synchronization, cleanup, and smoke checks.
-- `middleware.ts`: optional administrator authentication.
+- `scripts/run-local-api.ps1`: local Rust API startup helper for Windows.
+- `docs/images/`: application screenshots used by the README.
 - `data/`: runtime SQLite files and images; never commit this directory.
 
 ## Branches
@@ -56,7 +48,6 @@
 - For API changes, run `cargo fmt --manifest-path api/Cargo.toml -- --check` and `cargo test --manifest-path api/Cargo.toml --locked`.
 - For changes across the desktop/API boundary, build the API with `cargo build --manifest-path api/Cargo.toml --locked`, then run `npm --prefix desktop run test:e2e`.
 - For packaging or updates, produce a Windows x64 package and Velopack installer. Keep the npm Velopack and CLI versions aligned. Do not claim end-to-end auto-updates work until an installed application has updated between released versions.
-- For legacy web changes, retain the root `npm run check`, `npm run build`, and relevant smoke scripts.
 - For layout or interaction changes, inspect desktop and mobile views, including long usernames and copy-URL feedback when relevant.
 - For documentation-only changes, verify paths, commands, and the diff; an application build is not required.
 - Run `git diff --check` before committing or merging when Git is available. Fix errors and warnings introduced by the change.
@@ -88,7 +79,7 @@
 - Avoid unnecessary comments and commented-out code. Explain non-obvious decisions when a comment is useful.
 - Keep schema definitions and SQLite initialization consistent. Database changes must preserve existing data and account for existing installations.
 - Document new environment variables in `.env.example` using empty values or safe placeholders. Never commit or print `.env.local`, tokens, passwords, or runtime data.
-- Rust reads process environment variables; document them in `api/.env.example`. The legacy Next.js scripts still load configuration through `@next/env`.
+- Rust reads process environment variables; document them in `api/.env.example`.
 - Electron uses its bundled Chromium, not a second Playwright browser. Playwright is only a desktop test driver in the new architecture.
 - Keep GitHub release publishing restricted to stable `vX.Y.Z` tags. Never embed the release workflow's GitHub token in the application, and treat tag names as untrusted script input.
 

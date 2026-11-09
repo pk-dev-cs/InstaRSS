@@ -24,7 +24,7 @@ Electron desktop → HTTPS Rust API → SQLite + image files
 
 ## Windows application
 
-Download the installer from [GitHub Releases](https://github.com/pk-dev-cs/InstaRSS/releases). Install it, open **Connection & synchronization**, and enter:
+Download the installer from [GitHub Releases](https://github.com/pk-dev-cs/InstaRSS/releases). Install it, open the **Settings** tab, and enter:
 
 1. The Rust API's HTTPS URL.
 2. The administrator password configured on that server.
@@ -32,7 +32,7 @@ Download the installer from [GitHub Releases](https://github.com/pk-dev-cs/Insta
 
 The password is used once to issue a revocable installation token. It is not stored. The desktop stores its token using Electron's operating-system-backed encrypted storage. The server stores only a hash of each token. This is a single-owner application: authorized installations manage the same profiles and feeds.
 
-The default API URL in the desktop is `https://instarss-api-production.up.railway.app`. Self-hosted installations can change it in settings.
+The desktop defaults to the local test API at `http://127.0.0.1:3102`. A hosted API URL can be configured later in settings. Source fetching remains public-only: no source account login or persistent source session is implemented.
 
 Closing the window hides it in the tray. Choose **Quit** in the tray menu to stop the application. Synchronization requires an internet connection and a running application; it does not wake a powered-off computer.
 
@@ -46,6 +46,18 @@ npm --prefix desktop run dev
 ```
 
 The desktop uses Electron's Chromium for public-page fetching. It does not require a separate Playwright browser installation.
+
+### Local Windows testing
+
+Start the local Rust API in one PowerShell terminal:
+
+```powershell
+pwsh -File scripts/run-local-api.ps1
+```
+
+The script asks for a local API administrator password, binds only to `127.0.0.1:3102`, and stores test profiles and images in `data/local-api/`. In a second terminal, run the desktop with `npm --prefix desktop run dev`, or use the local installer. Connect it to `http://127.0.0.1:3102` with that API password. This is separate from source account authentication; fetching remains public-only.
+
+These local settings and scripts do not change a Railway deployment.
 
 ## Rust API
 
@@ -64,6 +76,7 @@ Set environment variables before starting the process. Rust does not automatical
 | `APP_BASE_URL` | Public URL used in RSS image links; defaults to `http://localhost:3000`. |
 | `ADMIN_PASSWORD` | Required to connect new desktop installations. With no password, pairing is disabled. |
 | `PORT` | HTTP listening port; defaults to `3000`. |
+| `BIND_ADDRESS` | Listening address; defaults to `0.0.0.0` for hosting. The local test script sets `127.0.0.1`. |
 | `API_TOKEN` | Optional maintenance Bearer token. Leave empty if only installation tokens are needed. |
 | `SYNC_TOKEN` | Compatibility fallback when `API_TOKEN` is unset; supports an existing Railway cleanup cron. |
 
@@ -106,6 +119,8 @@ docker build -f api/Dockerfile -t instarss-api .
 Configure the Railway service as follows:
 
 - Dockerfile path: `api/Dockerfile`.
+- GitHub source: `pk-dev-cs/InstaRSS`, branch `main`, with automatic deployments on push.
+- Watch paths: `api/**` and `.dockerignore`; desktop-only changes do not redeploy the API.
 - Persistent volume mounted at `/data`, with `DATA_DIR=/data`.
 - `APP_BASE_URL` set to the service's public HTTPS URL.
 - `ADMIN_PASSWORD` set to your chosen password.
@@ -159,9 +174,5 @@ Fetching from the user's computer changes the connection seen by the source prov
 Currently, fetching processes up to 30 discovered post links without scrolling the entire profile. The feed may contain fewer posts than were published during the retention period. Video files are not downloaded; an available preview image represents a video post.
 
 Fetch and redistribute only content you are authorized to use, under the source provider's terms.
-
-## Migration status
-
-The original Next.js application remains in `app/`, `lib/`, and the root npm configuration so a working web deployment can be retained during the transition. The root `Dockerfile` still builds that version. See [the legacy web documentation](docs/legacy-web.md) for its commands. The new applications have independent dependencies in `desktop/` and `api/`.
 
 See [AGENTS.md](AGENTS.md) for contribution rules.
