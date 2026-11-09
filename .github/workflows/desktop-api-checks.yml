@@ -1,0 +1,35 @@
+name: Desktop and Rust API checks
+on:
+  push:
+    branches: ['main', 'Session-*']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  desktop:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - name: Build local Rust API for desktop integration test
+        run: cargo build --manifest-path ../api/Cargo.toml --locked
+      - run: npm run test:e2e
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --manifest-path api/Cargo.toml --locked
+      - run: cargo fmt --manifest-path api/Cargo.toml -- --check
