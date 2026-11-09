@@ -11,7 +11,7 @@ function App(){
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
   const [name,setName]=useState("");
-  const [apiUrl,setApiUrl]=useState("https://instarss-production.up.railway.app");
+  const [apiUrl,setApiUrl]=useState("https://instarss-api-production.up.railway.app");
   const [interval,setInterval]=useState(1440);
   const [autostart,setAutostart]=useState(false);
   const [password,setPassword]=useState("");

@@ -32,6 +32,8 @@ Download the installer from [GitHub Releases](https://github.com/pk-dev-cs/Insta
 
 The password is used once to issue a revocable installation token. It is not stored. The desktop stores its token using Electron's operating-system-backed encrypted storage. The server stores only a hash of each token. This is a single-owner application: authorized installations manage the same profiles and feeds.
 
+The default API URL in the desktop is `https://instarss-api-production.up.railway.app`. Self-hosted installations can change it in settings.
+
 Closing the window hides it in the tray. Choose **Quit** in the tray menu to stop the application. Synchronization requires an internet connection and a running application; it does not wake a powered-off computer.
 
 ### Run from source
