@@ -2,7 +2,7 @@
 
 Turn public photo-sharing profiles into RSS feeds with images.
 
-![InstaRSS interface showing the profile form and RSS feed controls](docs/images/instarss.png)
+![InstaRSS interface showing the profile form and RSS feed controls](images/instarss.png)
 
 InstaRSS is a self-hosted application for following public profiles in your RSS reader. Each entry includes the post text, a link to the original post, and locally stored images. Posts and images are retained for **30 days from publication**.
 
@@ -167,4 +167,4 @@ npx tsx scripts/sync-endpoint-smoke.ts
 
 The smoke checks use separate local test databases. Live provider access is not required for these checks.
 
-See [AGENTS.md](AGENTS.md) for contribution workflow, code conventions, and data-handling requirements.
+See [AGENTS.md](../AGENTS.md) for contribution workflow, code conventions, and data-handling requirements.
